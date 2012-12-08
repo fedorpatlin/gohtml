@@ -1,4 +1,3 @@
-// ostest.go
 package main
 
 import (
@@ -14,9 +13,10 @@ const (
 	TITLE = "title"
 	BODY  = "body"
 	H1    = "h1"
+	P     = "p"
 )
 
-type htmltag struct {
+type Htmltag struct {
 	name       string
 	attributes tagattr
 	content    *list.List
@@ -33,8 +33,8 @@ func (p tagattr) String() string {
 	return paramlist
 }
 
-func construct(name string, params tagattr, value ...interface{}) htmltag {
-	var tag htmltag
+func Construct(name string, params tagattr, value ...interface{}) Htmltag {
+	var tag Htmltag
 	var vallist *list.List
 	vallist = list.New()
 	for _, v := range value {
@@ -46,7 +46,11 @@ func construct(name string, params tagattr, value ...interface{}) htmltag {
 	return tag
 }
 
-func (t htmltag) String() string {
+func (ht Htmltag) AddContent(tag Htmltag) {
+	ht.content.PushBack(tag)
+}
+
+func (t Htmltag) String() string {
 	var opentag, closetag, tagcontent string
 	opentag = "<" + t.name
 	if len(t.attributes) > 0 {
@@ -67,7 +71,7 @@ func String(value interface{}) string {
 	switch t := value.(type) {
 	case string:
 		result += escape(t)
-	case htmltag:
+	case Htmltag:
 		result += t.String()
 	default:
 		panic("unknown tag type")
@@ -87,10 +91,12 @@ func main() {
 	} else {
 		panic("No params!")
 	}
-	phead := construct(HEAD, nil,
-		construct(TITLE, nil, "Path to program"))
-	pbody := construct(BODY, nil,
-		construct(H1, tagattr{"id": "myfile", "class": "executable"}, path.Clean(path.Dir(progpath))+string(os.PathSeparator)+progname))
-	page := construct(HTML, nil, phead, pbody)
+	phead := Construct(HEAD, nil,
+		Construct(TITLE, nil, "Path to program"))
+	pbody := Construct(BODY, nil,
+		Construct(H1, tagattr{"id": "myfile", "class": "executable"}, path.Clean(path.Dir(progpath))+string(os.PathSeparator)+progname))
+	pbody.AddContent(Construct(P, tagattr{"id": "sometexthere"}, "There is some text in paragraph"))
+	page := Construct(HTML, nil, phead, pbody)
 	fmt.Println(page.String())
+	os.Exit(0)
 }
