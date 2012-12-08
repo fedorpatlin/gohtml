@@ -16,27 +16,24 @@ const (
 	H1    = "h1"
 )
 
-type tagpm map[string]string
-type tagvalue interface {
-	render() string
+type htmltag struct {
+	name       string
+	attributes tagattr
+	content    *list.List
 }
 
-func (p tagpm) render() string {
+type tagattr map[string]string
+
+func (p tagattr) String() string {
 	var paramlist string
 	paramlist = ""
 	for k, v := range p {
-		paramlist += " " + k + "=" + "\"" + v + "\""
+		paramlist += " " + String(k) + "=" + "\"" + String(v) + "\""
 	}
 	return paramlist
 }
 
-type htmltag struct {
-	name   string
-	params tagpm
-	value  *list.List
-}
-
-func construct(name string, params tagpm, value ...interface{}) htmltag {
+func construct(name string, params tagattr, value ...interface{}) htmltag {
 	var tag htmltag
 	var vallist *list.List
 	vallist = list.New()
@@ -44,34 +41,46 @@ func construct(name string, params tagpm, value ...interface{}) htmltag {
 		vallist.PushBack(v)
 	}
 	tag.name = name
-	tag.params = params
-	tag.value = vallist
+	tag.attributes = params
+	tag.content = vallist
 	return tag
 }
-func (t htmltag) render() string {
-	var opentag, closetag, tagval string
+
+func (t htmltag) String() string {
+	var opentag, closetag, tagcontent string
 	opentag = "<" + t.name
-	if len(t.params) > 0 {
-		opentag += " " + t.params.render()
+	if len(t.attributes) > 0 {
+		opentag += " " + t.attributes.String()
 	}
 	opentag += ">"
 	closetag = "</" + t.name + ">"
-	tagval = ""
-	for i := t.value.Front(); i != nil; i = i.Next() {
-		switch t := i.Value.(type) {
-		case string:
-			tagval += t
-		case tagvalue:
-			tagval += t.render()
-		default:
-			panic("unknown tag type")
-		}
+	tagcontent = ""
+	for i := t.content.Front(); i != nil; i = i.Next() {
+		tagcontent += String(i.Value)
 	}
-	return opentag + tagval + closetag
+	return opentag + tagcontent + closetag
 }
+
+func String(value interface{}) string {
+	var result string
+	result = ""
+	switch t := value.(type) {
+	case string:
+		result += escape(t)
+	case htmltag:
+		result += t.String()
+	default:
+		panic("unknown tag type")
+	}
+	return result
+}
+
+func escape(s string) string {
+	return s
+}
+
 func main() {
 	var progname, progpath string
-	os.Chdir("/")
 	if len(os.Args) > 0 {
 		progpath = os.Args[0]
 		progname = path.Base(progpath)
@@ -81,7 +90,7 @@ func main() {
 	phead := construct(HEAD, nil,
 		construct(TITLE, nil, "Path to program"))
 	pbody := construct(BODY, nil,
-		construct(H1, tagpm{"param": "value", "param2": "value2"}, path.Clean(path.Dir(progpath))+string(os.PathSeparator)+progname))
+		construct(H1, tagattr{"id": "myfile", "class": "executable"}, path.Clean(path.Dir(progpath))+string(os.PathSeparator)+progname))
 	page := construct(HTML, nil, phead, pbody)
-	fmt.Println(page.render())
+	fmt.Println(page.String())
 }
